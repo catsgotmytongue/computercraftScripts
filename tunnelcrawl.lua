@@ -1,4 +1,7 @@
 local tunnelLength = 20
+local tunnelHeight = 3
+
+-- blocknames to accumulate
 local pickup = {
     ["air"] = false,
     ["block"] = false, 
@@ -25,6 +28,9 @@ end
 local function blockUpName(turtle.inspectUp)
     return inspectBlock(turtle.inspectUp)
 end
+local function isDesiredBlock(inspectFunc)
+  return pickup[inspectFunc()]
+end
 local function digForward()
     turtle.dig()
     turtle.forward()
@@ -42,46 +48,60 @@ end
 local function digWhileGravelOrSand()
 -- dig until we should stop
 end
+local function digUp()
+  turtle.digUp()
+  os.sleep(.5) -- wait for gravel/sand/water/lava etc...
+end
+local function digAndReplaceUp()
+  digUp()
+  replaceBlock(turtle.placeUp)
+  return true
+end
+local function digAndReplaceDown()
+  turtle.digDown()
+  replaceBlock(turtle.placeDown)
+  return true
+end
+local function digSideAndReplace(startTurnFunc, endTurnFunc)
+  startTurnFunc()
+  if(isDesiredBlock(blockFrontName)) then 
+    turtle.dig()
+    digWhileGravelOrSand()
+  end
+  endTurnFunc()
+  return true
+end
+local function digAndReplaceLeft()
+  return digSideAndReplace(turtle.turnLeft, turtle.turnRight)
+end
+local function digAndReplaceRight()
+  return digSideAndReplace(turtle.turnRight, turtle.turnLeft)
+end
 local function getDesiredBlockAndReplace(direction)
-    if(direction == "up" and pickup[blockUpName()]) then 
-        turtle.digUp()
-        os.sleep(.5) -- wait for gravel/sand/water/lava etc...
-        replaceBlock(turtle.placeUp)
-        return true
+    if(direction == "up" and isDesiredBlock(blockUpName) then 
+      return digAndReplaceUp()
     end
-    if(direction == "down" and pickup[blockDownName()]) then 
-        turtle.digDown()
-        replaceBlock(turtle.placeDown)
-        return true
+    if(direction == "down" and isDesiredBlock(blockDownName)) then 
+      return digAndReplaceDown()
     end
     if(direction == "left") then 
-        turtle.turnLeft()
-        if(pickup[blockFrontName()]) then 
-            turtle.dig()
-            digWhileGravelOrSand()
-        end
-        turtle.turnRight()
-        return true
+      return digAndReplaceLeft()
     end
     if(direction == "right") then 
-        turtle.turnRight()
-        if(pickup[blockFrontName()]) then 
-            turtle.dig()
-            digWhileGravelOrSand()
-        end
-        turtle.turnLeft()
-        return true
+      return digAndReplaceRight()
     end
 end
 
 -- main
 for 1, tunnelLength do
-    digForward()
+  digForward()
+  getDesiredBlockAndReplace("down")
 
-    getDesiredBlockAndReplace("down")
+  for 1, tunnelHeight do
     getDesiredBlockAndReplace("left")
     getDesiredBlockAndReplace("right")
-    
-    getDesiredBlockAndReplace("up")
+    digUp()
+    turtle.up()
+  end
     
 end
